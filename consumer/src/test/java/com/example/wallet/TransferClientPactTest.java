@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(PactConsumerTestExt.class)
@@ -59,5 +60,37 @@ class TransferClientPactTest {
 
         assertEquals("COMPLETED", response.status());
         assertTrue(response.id().startsWith("TRX-"));
+    }
+    @Pact(consumer = "wallet-service")
+    RequestResponsePact createTransferRejectedForInsufficientFunds(PactDslWithProvider builder) {
+        return builder
+                .given("source account ACC-001 has insufficient funds")
+                .uponReceiving("a request to create a transfer that exceeds the balance")
+                    .path("/transfers")
+                    .method("POST")
+                    .headers(JSON)
+                    .body(new PactDslJsonBody()
+                            .stringValue("fromAccount", "ACC-001")
+                            .stringValue("toAccount", "ACC-002")
+                            .numberType("amount", 250.00)
+                            .stringValue("currency", "KES"))
+                .willRespondWith()
+                    .status(422)
+                    .headers(JSON)
+                    .body(new PactDslJsonBody()
+                            .stringValue("code", "INSUFFICIENT_FUNDS")
+                            .stringType("message", "Insufficient funds in account ACC-001"))
+                .toPact();
+    }
+
+    @Test
+    @PactTestFor(pactMethod = "createTransferRejectedForInsufficientFunds")
+    void createTransfer_insufficientFunds_isRejected(MockServer mockServer) {
+        TransferClient client = new TransferClient(mockServer.getUrl());
+
+        TransferRejectedException ex = assertThrows(TransferRejectedException.class, () ->
+                client.createTransfer(new TransferRequest("ACC-001", "ACC-002", new BigDecimal("250.00"), "KES")));
+
+        assertEquals("INSUFFICIENT_FUNDS", ex.getCode());
     }
 }

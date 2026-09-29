@@ -29,9 +29,14 @@ public class TransferClient
 
         HttpResponse<String> response = http.send(httpRequest, HttpResponse.BodyHandlers.ofString());
 
-        if (response.statusCode() == 201) {
+        switch (response.statusCode()) {
+        case 201:
             return mapper.readValue(response.body(), TransferResponse.class);
-        }
-        throw new IllegalStateException("Unexpected status " + response.statusCode());
+        case 422:
+            ApiError error = mapper.readValue(response.body(), ApiError.class);
+            throw new TransferRejectedException(error.code(), error.message());
+        default:
+            throw new IllegalStateException("Unexpected status " + response.statusCode());
+    }
     }
 }
