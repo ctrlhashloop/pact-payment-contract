@@ -27,11 +27,21 @@ public class TransferService {
         }
     }
 
+    public static class InvalidTransferException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        public InvalidTransferException(String message) {
+            super(message);
+        }
+    }
+
     private final Map<String, BigDecimal> balances = new ConcurrentHashMap<>();
     private final Map<String, Transfer> transfers = new ConcurrentHashMap<>();
     private final AtomicInteger sequence = new AtomicInteger(1000);
 
     public synchronized Transfer create(TransferRequest request) {
+        validate(request);
+
         BigDecimal available = balances.getOrDefault(request.fromAccount(), BigDecimal.ZERO);
         if (available.compareTo(request.amount()) < 0) {
             throw new InsufficientFundsException(request.fromAccount());
@@ -50,7 +60,13 @@ public class TransferService {
                 .orElseThrow(() -> new TransferNotFoundException(id));
     }
 
-    // ---- Helpers used only by the Pact provider states (test setup) ----
+    private void validate(TransferRequest request) {
+        if (request.amount() == null || request.amount().signum() <= 0) {
+            throw new InvalidTransferException("Amount must be greater than zero");
+        }
+    }
+
+    // ---- Helpers used only by the Pact provider states and tests (setup) ----
 
     public synchronized void reset() {
         balances.clear();

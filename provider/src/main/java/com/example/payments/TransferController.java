@@ -41,4 +41,10 @@ public class TransferController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ApiError("TRANSFER_NOT_FOUND", ex.getMessage()));
     }
+    
+    @ExceptionHandler(TransferService.InvalidTransferException.class)
+    public ResponseEntity<ApiError> invalid(TransferService.InvalidTransferException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiError("INVALID_TRANSFER", ex.getMessage()));
+    }
 }
