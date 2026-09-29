@@ -64,6 +64,19 @@ public class TransferService {
         if (request.amount() == null || request.amount().signum() <= 0) {
             throw new InvalidTransferException("Amount must be greater than zero");
         }
+        if (isBlank(request.fromAccount()) || isBlank(request.toAccount())) {
+            throw new InvalidTransferException("Both fromAccount and toAccount are required");
+        }
+        if (request.fromAccount().equals(request.toAccount())) {
+            throw new InvalidTransferException("Cannot transfer to the same account");
+        }
+        if (isBlank(request.currency())) {
+            throw new InvalidTransferException("Currency is required");
+        }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     // ---- Helpers used only by the Pact provider states and tests (setup) ----
