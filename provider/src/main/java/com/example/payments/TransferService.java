@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -11,12 +12,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TransferService {
 
     public static class InsufficientFundsException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public InsufficientFundsException(String accountId) {
             super("Insufficient funds in account " + accountId);
         }
     }
 
+    public static class TransferNotFoundException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        public TransferNotFoundException(String id) {
+            super("Transfer " + id + " not found");
+        }
+    }
+
     private final Map<String, BigDecimal> balances = new ConcurrentHashMap<>();
+    private final Map<String, Transfer> transfers = new ConcurrentHashMap<>();
     private final AtomicInteger sequence = new AtomicInteger(1000);
 
     public synchronized Transfer create(TransferRequest request) {
@@ -27,17 +39,30 @@ public class TransferService {
         balances.put(request.fromAccount(), available.subtract(request.amount()));
         balances.merge(request.toAccount(), request.amount(), BigDecimal::add);
 
-        return new Transfer("TRX-" + sequence.incrementAndGet(), "COMPLETED",
+        Transfer transfer = new Transfer("TRX-" + sequence.incrementAndGet(), "COMPLETED",
                 request.fromAccount(), request.toAccount(), request.amount(), request.currency());
+        transfers.put(transfer.id(), transfer);
+        return transfer;
     }
 
-    // Used by the Pact provider states to set up test conditions
+    public Transfer get(String id) {
+        return Optional.ofNullable(transfers.get(id))
+                .orElseThrow(() -> new TransferNotFoundException(id));
+    }
+
+    // ---- Helpers used only by the Pact provider states (test setup) ----
+
     public synchronized void reset() {
         balances.clear();
+        transfers.clear();
         sequence.set(1000);
     }
 
     public void setBalance(String accountId, BigDecimal balance) {
         balances.put(accountId, balance);
+    }
+
+    public void seed(Transfer transfer) {
+        transfers.put(transfer.id(), transfer);
     }
 }

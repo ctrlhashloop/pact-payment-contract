@@ -54,4 +54,16 @@ class PaymentsApiPactVerificationTest {
         service.reset();
         service.setBalance("ACC-001", new BigDecimal("10.00"));
     }
+    
+    @State("transfer TRX-1001 exists")
+    void transferExists() {
+        service.reset();
+        service.seed(new Transfer("TRX-1001", "COMPLETED", "ACC-001", "ACC-002",
+                new BigDecimal("250.00"), "KES"));
+    }
+
+    @State("transfer TRX-9999 does not exist")
+    void transferMissing() {
+        service.reset();
+    }
 }

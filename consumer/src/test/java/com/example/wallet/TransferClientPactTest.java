@@ -93,4 +93,54 @@ class TransferClientPactTest {
 
         assertEquals("INSUFFICIENT_FUNDS", ex.getCode());
     }
+    @Pact(consumer = "wallet-service")
+    RequestResponsePact getExistingTransfer(PactDslWithProvider builder) {
+        return builder
+                .given("transfer TRX-1001 exists")
+                .uponReceiving("a request to get an existing transfer")
+                    .path("/transfers/TRX-1001")
+                    .method("GET")
+                .willRespondWith()
+                    .status(200)
+                    .headers(JSON)
+                    .body(new PactDslJsonBody()
+                            .stringValue("id", "TRX-1001")
+                            .stringValue("status", "COMPLETED")
+                            .stringValue("fromAccount", "ACC-001")
+                            .stringValue("toAccount", "ACC-002")
+                            .numberType("amount", 250.00)
+                            .stringValue("currency", "KES"))
+                .toPact();
+    }
+
+    @Test
+    @PactTestFor(pactMethod = "getExistingTransfer")
+    void getTransfer_existing_returnsTransfer(MockServer mockServer) throws Exception {
+        TransferClient client = new TransferClient(mockServer.getUrl());
+
+        TransferResponse response = client.getTransfer("TRX-1001").orElseThrow();
+
+        assertEquals("TRX-1001", response.id());
+        assertEquals("COMPLETED", response.status());
+    }
+
+    @Pact(consumer = "wallet-service")
+    RequestResponsePact getMissingTransfer(PactDslWithProvider builder) {
+        return builder
+                .given("transfer TRX-9999 does not exist")
+                .uponReceiving("a request to get a transfer that does not exist")
+                    .path("/transfers/TRX-9999")
+                    .method("GET")
+                .willRespondWith()
+                    .status(404)
+                .toPact();
+    }
+
+    @Test
+    @PactTestFor(pactMethod = "getMissingTransfer")
+    void getTransfer_missing_returnsEmpty(MockServer mockServer) throws Exception {
+        TransferClient client = new TransferClient(mockServer.getUrl());
+
+        assertTrue(client.getTransfer("TRX-9999").isEmpty());
+    }
 }
