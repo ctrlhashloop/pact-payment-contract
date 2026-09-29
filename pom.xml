@@ -18,6 +18,7 @@
 
   <modules>
     <module>consumer</module>
+    <module>provider</module>
   </modules>
 
   <properties>
